@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>亚马逊爆品选品系统</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+        <rect width="26" height="26" rx="7" fill="#3B6D11"/>
+        <path d="M7 13h12M13 7l6 6-6 6" stroke="#EAF3DE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>爆品选品系统</span>
+    </div>
+    <button class="new-btn" onclick="newProject()">＋ 新建选品</button>
+    <div class="sidebar-section-label">历史记录</div>
+    <div class="history-list" id="historyList"></div>
+    <div class="sidebar-footer">
+      <div class="api-status" id="apiStatus">
+        <span class="dot" id="apiDot"></span>
+        <span id="apiStatusText">未配置 API Key</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="mainArea">
+
+    <!-- WELCOME -->
+    <div id="welcomeScreen" class="welcome-screen">
+      <div class="welcome-inner">
+        <div class="welcome-badge">Bella 爆品方法论 · 数据驱动版</div>
+        <h1>亚马逊爆品选品系统</h1>
+        <p>基于<strong>日销3500单实战方法论</strong>，整合 Google Trends + ABA品牌分析 + 商机探测器 + 竞品拆解 + 用户需求金字塔，构建科学的七步选品决策体系。</p>
+
+        <div class="api-setup-box" id="apiSetupBox">
+          <div class="api-setup-label">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="#185FA5" stroke-width="1.2"/><path d="M7 6.5v4M7 4.5v.5" stroke="#185FA5" stroke-width="1.2" stroke-linecap="round"/></svg>
+            第一步：配置 API（必须先完成）
+          </div>
+
+          <div class="api-choice-row">
+            <div class="api-choice-card" onclick="selectApiMode('official')" id="choiceOfficial">
+              <div class="acc-icon">🔑</div>
+              <div class="acc-title">官方 API</div>
+              <div class="acc-desc">Anthropic 官方<br/>国内需翻墙</div>
+            </div>
+            <div class="api-choice-card" onclick="selectApiMode('proxy')" id="choiceProxy">
+              <div class="acc-icon">🔀</div>
+              <div class="acc-title">中转站 API</div>
+              <div class="acc-desc">国内直连<br/>推荐国内用户</div>
+            </div>
+          </div>
+
+          <!-- 中转站地址（仅中转站模式显示） -->
+          <div id="proxyUrlRow" style="display:none; margin-bottom:6px;">
+            <input type="text" id="apiUrlInput" placeholder="中转站地址，如：https://yunwu.ai" style="width:100%;padding:7px 10px;border:1px solid #b5d4f4;border-radius:6px;background:#fff;font-size:13px;box-sizing:border-box;" />
+            <p style="font-size:11px;color:#185FA5;margin-top:4px;">末尾不要加 /，工具自动拼接 /v1/messages</p>
+          </div>
+
+          <!-- API Key（始终显示，id唯一） -->
+          <div class="api-input-row" style="margin-bottom:6px;">
+            <input type="password" id="apiKeyInput" placeholder="API Key" />
+            <button onclick="saveApiKey()">保存</button>
+          </div>
+
+          <!-- 模型名（仅中转站模式显示） -->
+          <div id="proxyModelRow" style="display:none; margin-bottom:6px;">
+            <input type="text" id="apiModelInput" placeholder="模型名，如：claude-sonnet-4-6（不填则用默认）" style="width:100%;padding:7px 10px;border:1px solid #b5d4f4;border-radius:6px;background:#fff;font-size:13px;box-sizing:border-box;" />
+          </div>
+
+          <p class="api-hint" id="apiHintText">获取官方 Key：<a href="https://console.anthropic.com/" target="_blank">console.anthropic.com →</a>（需翻墙）</p>
+          <div id="apiSavedMsg" style="display:none;font-size:12px;color:#3B6D11;font-weight:600;margin-top:6px;">✓ 已保存，可以开始分析</div>
+        </div>
+
+        <div class="start-card">
+          <div class="start-card-title">开始新的选品分析</div>
+          <div class="form-row-3">
+            <div class="form-group">
+              <label>目标关键词 *</label>
+              <input type="text" id="kwInput" placeholder="如：crossbody bags for women" />
+            </div>
+            <div class="form-group">
+              <label>竞品 ASIN（逗号分隔）</label>
+              <input type="text" id="asinInput" placeholder="B0DCHY41QT, B0BWYC6D7J..." />
+            </div>
+            <div class="form-group">
+              <label>目标市场</label>
+              <select id="marketInput">
+                <option value="美国">美国 (amazon.com)</option>
+                <option value="英国">英国 (amazon.co.uk)</option>
+                <option value="德国">德国 (amazon.de)</option>
+                <option value="日本">日本 (amazon.co.jp)</option>
+                <option value="加拿大">加拿大 (amazon.ca)</option>
+                <option value="澳大利亚">澳大利亚 (amazon.com.au)</option>
+              </select>
+            </div>
+          </div>
+          <button class="start-btn" onclick="startAnalysis()">🚀 开始七步选品分析</button>
+        </div>
+
+        <div class="method-cards">
+          <div class="method-card"><div class="mc-num">01</div><div class="mc-title">Google趋势</div><div class="mc-desc">分析搜索趋势、季节性、是否为伪风口</div></div>
+          <div class="method-card"><div class="mc-num">02</div><div class="mc-title">市场概览</div><div class="mc-desc">ABA品牌分析 + 商机探测器数据</div></div>
+          <div class="method-card"><div class="mc-num">03</div><div class="mc-title">竞品拆解</div><div class="mc-desc">垄断度 + 卖家构成 + 产品属性矩阵</div></div>
+          <div class="method-card"><div class="mc-num">04</div><div class="mc-title">用户画像</div><div class="mc-desc">WHO/WHAT/HOW/WHERE + 需求金字塔</div></div>
+          <div class="method-card"><div class="mc-num">05</div><div class="mc-title">差异化机会</div><div class="mc-desc">痛点→空白→卖点 + 关键词供需比</div></div>
+          <div class="method-card"><div class="mc-num">06</div><div class="mc-title">财务测算</div><div class="mc-desc">显性+隐性成本全成本核算</div></div>
+          <div class="method-card mc-last"><div class="mc-num">07</div><div class="mc-title">Go/No-Go</div><div class="mc-desc">四维评估 + 综合评分 + 行动计划</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANALYSIS SCREEN -->
+    <div id="analysisScreen" style="display:none; flex-direction:column; height:100%;">
+      <div class="analysis-topbar">
+        <div>
+          <div class="analysis-kw" id="analysisKw"></div>
+          <div class="analysis-meta" id="analysisMeta"></div>
+        </div>
+        <div class="topbar-actions">
+          <button class="topbar-btn" onclick="showDataUpload()">📎 上传数据</button>
+          <button class="topbar-btn" onclick="newProject()">＋ 新建</button>
+        </div>
+      </div>
+
+      <div class="steps-strip" id="stepsStrip">
+        <div class="step-item" id="si1" onclick="goStep(1)"><span class="si-num">1</span><span class="si-label">趋势</span></div>
+        <div class="si-arrow">›</div>
+        <div class="step-item" id="si2" onclick="goStep(2)"><span class="si-num">2</span><span class="si-label">市场</span></div>
+        <div class="si-arrow">›</div>
+        <div class="step-item" id="si3" onclick="goStep(3)"><span class="si-num">3</span><span class="si-label">竞品</span></div>
+        <div class="si-arrow">›</div>
+        <div class="step-item" id="si4" onclick="goStep(4)"><span class="si-num">4</span><span class="si-label">用户</span></div>
+        <div class="si-arrow">›</div>
+        <div class="step-item" id="si5" onclick="goStep(5)"><span class="si-num">5</span><span class="si-label">差异化</span></div>
+        <div class="si-arrow">›</div>
+        <div class="step-item" id="si6" onclick="goStep(6)"><span class="si-num">6</span><span class="si-label">财务</span></div>
+        <div class="si-arrow">›</div>
+        <div class="step-item" id="si7" onclick="goStep(7)"><span class="si-num">7</span><span class="si-label">决策</span></div>
+      </div>
+
+      <div class="step-content" id="stepContent"></div>
+    </div>
+
+    <!-- DATA UPLOAD MODAL -->
+    <div class="modal-overlay" id="uploadModal" style="display:none;" onclick="closeUploadModal(event)">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3>上传亚马逊数据</h3>
+          <button class="modal-close" onclick="document.getElementById('uploadModal').style.display='none'">✕</button>
+        </div>
+        <p class="modal-desc">由于亚马逊无公开 API，请手动上传后台截图或导出文件，AI 将自动识别并提取关键数据。</p>
+
+        <div class="upload-tabs">
+          <button class="utab active" onclick="switchUploadTab('screenshot')">📸 截图上传</button>
+          <button class="utab" onclick="switchUploadTab('file')">📄 文件上传</button>
+        </div>
+
+        <div id="uploadTabScreenshot">
+          <div class="upload-types-grid">
+            <div class="utype-card" onclick="triggerFileUpload('google_trends')">
+              <div class="utype-icon">📈</div>
+              <div class="utype-label">Google Trends 截图</div>
+              <div class="utype-hint">趋势走势图、热度数据</div>
+            </div>
+            <div class="utype-card" onclick="triggerFileUpload('opportunity_explorer')">
+              <div class="utype-icon">🔭</div>
+              <div class="utype-label">商机探测器截图</div>
+              <div class="utype-hint">细分市场数据、搜索趋势</div>
+            </div>
+            <div class="utype-card" onclick="triggerFileUpload('aba_brand')">
+              <div class="utype-icon">📊</div>
+              <div class="utype-label">ABA品牌分析截图</div>
+              <div class="utype-hint">关键词排名、购买行为</div>
+            </div>
+            <div class="utype-card" onclick="triggerFileUpload('competitor_listing')">
+              <div class="utype-icon">🛍️</div>
+              <div class="utype-label">竞品 Listing 截图</div>
+              <div class="utype-hint">竞品详情页、价格评论</div>
+            </div>
+            <div class="utype-card" onclick="triggerFileUpload('review_analysis')">
+              <div class="utype-icon">⭐</div>
+              <div class="utype-label">评论数据截图</div>
+              <div class="utype-hint">好评/差评分析</div>
+            </div>
+            <div class="utype-card" onclick="triggerFileUpload('bsr_ranking')">
+              <div class="utype-icon">🏆</div>
+              <div class="utype-label">BSR排名截图</div>
+              <div class="utype-hint">类目排名、销量估算</div>
+            </div>
+          </div>
+          <input type="file" id="screenshotFileInput" accept="image/*" multiple style="display:none" onchange="handleScreenshotUpload(event)" />
+        </div>
+
+        <div id="uploadTabFile" style="display:none;">
+          <div class="file-drop-zone" id="fileDropZone" onclick="document.getElementById('fileInput').click()" ondragover="handleDragOver(event)" ondrop="handleFileDrop(event)">
+            <div class="fdz-icon">📁</div>
+            <div class="fdz-title">点击或拖拽上传文件</div>
+            <div class="fdz-hint">支持 Excel(.xlsx)、CSV(.csv) 格式<br/>可上传市调模板、竞品对比表、关键词数据等</div>
+          </div>
+          <input type="file" id="fileInput" accept=".xlsx,.csv,.xls" multiple style="display:none" onchange="handleFileUpload(event)" />
+        </div>
+
+        <div class="uploaded-list" id="uploadedList"></div>
+        <div id="extractedDataPreview"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
