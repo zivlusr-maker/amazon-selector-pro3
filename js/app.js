@@ -1,14 +1,11 @@
 /* ==========================================================
-   亚马逊爆品选品系统 — 基于 Bella 爆品方法论
+   Ziv 亚马逊选品工作台 — 基于 Ziv 爆品方法论
    核心方法论来源：
    · 第二课-亚马逊爆品体系化运营高阶.pptx
-   · Bella厨房喷火器市调模板0929.xlsx
+   · Ziv厨房喷火器市调模板0929.xlsx
    · 本次直播围绕.docx
    ========================================================== */
 
-let API_KEY = localStorage.getItem('amz_pro_api_key') || '';
-let API_BASE_URL = localStorage.getItem('amz_pro_api_url') || 'https://api.anthropic.com';
-let API_MODEL = localStorage.getItem('amz_pro_api_model') || 'claude-sonnet-4-20250514';
 let projects = JSON.parse(localStorage.getItem('amz_pro_projects') || '[]');
 let currentId = null;
 let currentUploadType = 'screenshot';
@@ -18,111 +15,23 @@ let pendingUploadType = null;
 updateApiStatus();
 renderHistory();
 
-// ===== API SETTINGS =====
-function saveApiKey() {
-  const keyEl = document.getElementById('apiKeyInput');
-  const v = keyEl ? keyEl.value.trim() : '';
-  if (!v) {
-    showInlineError('请先输入 API Key');
-    return;
-  }
-  API_KEY = v;
-  localStorage.setItem('amz_pro_api_key', v);
-
-  // 中转站地址
-  const urlEl = document.getElementById('apiUrlInput');
-  if (urlEl && urlEl.value.trim()) {
-    API_BASE_URL = urlEl.value.trim().replace(/\/$/, '');
-    localStorage.setItem('amz_pro_api_url', API_BASE_URL);
-  }
-
-  // 模型名：优先用用户填的，否则根据中转站自动推断
-  const modelEl = document.getElementById('apiModelInput');
-  const modelVal = modelEl ? modelEl.value.trim() : '';
-  if (modelVal) {
-    API_MODEL = modelVal;
-  } else {
-    // 如果是中转站且没填模型，保持默认
-    API_MODEL = API_MODEL || 'claude-sonnet-4-20250514';
-  }
-  localStorage.setItem('amz_pro_api_model', API_MODEL);
-
-  updateApiStatus();
-  keyEl.value = '';
-
-  // 显示成功提示，不用 alert
-  const box = document.getElementById('apiSetupBox');
-  const msg = document.getElementById('apiSavedMsg');
-  if (box) { box.style.background = 'var(--green-light)'; box.style.borderColor = '#c6e09a'; }
-  if (msg) { msg.style.display = 'block'; }
-  setTimeout(() => { if (msg) msg.style.display = 'none'; }, 3000);
-}
-
-function showInlineError(text) {
-  const msg = document.getElementById('apiSavedMsg');
-  if (msg) {
-    msg.style.display = 'block';
-    msg.style.color = '#A32D2D';
-    msg.textContent = '⚠ ' + text;
-    setTimeout(() => {
-      msg.style.display = 'none';
-      msg.style.color = '#3B6D11';
-      msg.textContent = '✓ 已保存，可以开始分析';
-    }, 3000);
-  }
-}
-
+// ===== SERVER API =====
 function updateApiStatus() {
   const dot = document.getElementById('apiDot');
   const txt = document.getElementById('apiStatusText');
-  if (!dot || !txt) return;
-  const isProxy = API_BASE_URL !== 'https://api.anthropic.com';
-  if (API_KEY) {
-    dot.className = 'dot ok';
-    txt.textContent = isProxy ? 'API 已就绪（中转）' : 'API 已就绪';
-  } else {
-    dot.className = 'dot';
-    txt.textContent = '未配置 API Key';
-  }
+  if (dot) dot.className = 'dot ok';
+  if (txt) txt.textContent = 'Ziv AI 已就绪';
 }
 
-function selectApiMode(mode) {
-  const cOff = document.getElementById('choiceOfficial');
-  const cPro = document.getElementById('choiceProxy');
-  const urlRow = document.getElementById('proxyUrlRow');
-  const modelRow = document.getElementById('proxyModelRow');
-  const hintEl = document.getElementById('apiHintText');
-  const keyEl = document.getElementById('apiKeyInput');
-
-  if (cOff) cOff.classList.toggle('selected', mode === 'official');
-  if (cPro) cPro.classList.toggle('selected', mode === 'proxy');
-  if (urlRow) urlRow.style.display = mode === 'proxy' ? 'block' : 'none';
-  if (modelRow) modelRow.style.display = mode === 'proxy' ? 'block' : 'none';
-
-  if (mode === 'official') {
-    API_BASE_URL = 'https://api.anthropic.com';
-    localStorage.setItem('amz_pro_api_url', API_BASE_URL);
-    if (keyEl) keyEl.placeholder = 'sk-ant-api03-...';
-    if (hintEl) hintEl.innerHTML = '获取官方 Key：<a href="https://console.anthropic.com/" target="_blank">console.anthropic.com →</a>（需翻墙）';
-  } else {
-    if (keyEl) keyEl.placeholder = '中转站 API Key';
-    if (hintEl) hintEl.innerHTML = '填入中转站地址和 Key 后点保存，Key 只存在本地浏览器';
-  }
-}
-
-// Helper: build fetch URL and headers
-function buildApiRequest(body) {
-  const isProxy = API_BASE_URL !== 'https://api.anthropic.com';
-  const url = `${API_BASE_URL}/v1/messages`;
-  const headers = { 'Content-Type': 'application/json' };
-  if (isProxy) {
-    headers['Authorization'] = `Bearer ${API_KEY}`;
-  } else {
-    headers['x-api-key'] = API_KEY;
-    headers['anthropic-version'] = '2023-06-01';
-    headers['anthropic-dangerous-direct-browser-access'] = 'true';
-  }
-  return { url, headers, body: JSON.stringify(body) };
+async function callServer(payload) {
+  const resp = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || `服务请求失败（HTTP ${resp.status}）`);
+  return data.result;
 }
 
 // ===== PROJECTS =====
@@ -134,13 +43,6 @@ function newProject() {
 }
 
 function startAnalysis() {
-  if (!API_KEY) {
-    // 滚动到 API 设置框提示
-    const box = document.getElementById('apiSetupBox');
-    if (box) { box.scrollIntoView({ behavior: 'smooth' }); box.style.borderColor = '#E24B4A'; }
-    showInlineError('请先填写并保存 API Key');
-    return;
-  }
   const kw = document.getElementById('kwInput').value.trim();
   if (!kw) { document.getElementById('kwInput').focus(); return; }
   const asins = document.getElementById('asinInput').value.trim().split(',').map(a => a.trim()).filter(Boolean);
@@ -254,7 +156,7 @@ function loadingHtml(n) {
   return `<div class="panel"><div class="loading-wrap">
     <div class="loading-spinner"></div>
     <div class="loading-text">Step ${n}: ${STEP_LABELS[n]} 分析中</div>
-    <div class="loading-sub">AI 正在基于 Bella 爆品方法论处理数据...</div>
+    <div class="loading-sub">AI 正在基于 Ziv 爆品方法论处理数据...</div>
   </div></div>`;
 }
 
@@ -264,9 +166,9 @@ async function callClaude(step, p) {
   const asinStr = asins.join(', ') || '未提供';
   const uploadCtx = buildUploadContext(uploadedData);
 
-  // ── BELLA METHODOLOGY SYSTEM PROMPT ──
+  // ── ZIV METHODOLOGY SYSTEM PROMPT ──
   const SYSTEM = `你是亚马逊爆品选品专家，深度掌握以下方法论：
-【Bella爆品方法论核心】
+【Ziv爆品方法论核心】
 1. 选对产品 > 努力运营，错误的产品让顶尖运营也事倍功半
 2. 选品四维评估：市场垄断度 + 利润空间 + 产品趋势与季节性 + 用户偏好
 3. 用户需求金字塔：基础需求(65%) → 期望需求(35%) → 社交/尊重需求(5%)
@@ -317,20 +219,12 @@ Top3份额:${stepData[2]?.top3ShareTotal||19.79}% | 垄断OK:${stepData[2]?.mono
 {"totalScore":74,"decision":"谨慎GO","decisionType":"caution","dimensions":[{"name":"市场容量","weight":15,"score":13,"maxScore":15,"reason":"月搜索66万，细分词12万，市场规模大","status":"ok"},{"name":"竞争可进入性","weight":20,"score":13,"maxScore":20,"reason":"Top3份额<20%，新品广告位机会存在，但竞品数26万偏多","status":"caution"},{"name":"利润空间","weight":20,"score":16,"maxScore":20,"reason":"毛利率46%远超30%健康线，显性成本结构健康","status":"ok"},{"name":"差异化空间","weight":15,"score":12,"maxScore":15,"reason":"轻量化+智能分区有结构性空白，关键词供需比<0.4","status":"ok"},{"name":"供应链可行性","weight":15,"score":10,"maxScore":15,"reason":"1688有货源，但需确认MOQ和打样周期","status":"caution"},{"name":"品牌壁垒","weight":15,"score":10,"maxScore":15,"reason":"无头部绝对垄断，但Pander等品牌有粉丝积累","status":"caution"}],"goReasons":["毛利率健康，盈利基础好","差异化方向清晰：轻量+分区+宽肩带","市场需求持续稳定，非伪风口","Top3总份额<20%，市场分散可进入"],"cautionReasons":["广告效率偏低，日投$20仅带来3单，需优化","库存周转166天，资金积压风险高","竞品数超26万，需精准差异化和长尾词策略"],"noGoReasons":[],"nextSteps":["打样：验证\"超轻+4口袋+宽肩带\"设计方案，送样测试","关键词：优先布局small crossbody bags for women等供需比<0.4的词","广告：新品期主攻精准长尾词，控日预算$10-15，优化ACOS","库存：首批控制200-300件，验证市场反应后再追货","Listing：主图展示容量对比图，突出\"轻量+分区\"核心卖点","时机：5月母亲节旺季前2个月（3月初）完成上架和关键词卡位"],"seasonalTiming":"建议3月初上架，布局母亲节旺季","finalAdvice":"市场机会真实存在，产品差异化方向清晰，但需严格控制首批库存量和广告成本，以小成本验证后再放量。"}`,
   };
 
-  const req = buildApiRequest({
-    model: API_MODEL,
-    max_tokens: 1500,
+  const result = await callServer({
     system: SYSTEM,
-    messages: [{ role: 'user', content: prompts[step] }]
+    prompt: prompts[step],
+    responseType: 'json'
   });
-  const resp = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body });
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error?.message || `HTTP ${resp.status}`);
-  }
-  const data = await resp.json();
-  const text = data.content.map(c => c.text || '').join('').replace(/```json|```/g, '').trim();
-  return JSON.parse(text);
+  return result;
 }
 
 // Build uploaded data context string
@@ -382,7 +276,7 @@ function renderStep1(d) {
         </div>
       </div>
       <div>
-        <div class="section-title">趋势洞察（Bella方法论）</div>
+        <div class="section-title">趋势洞察（Ziv方法论）</div>
         <div class="inner-card" style="margin-bottom:10px;"><div class="inner-card-text">${d.trendInsight}</div></div>
         <div class="section-title">季节性运营建议</div>
         <div class="inner-card"><div class="inner-card-text">${d.seasonalAdvice}</div></div>
@@ -422,7 +316,7 @@ function renderStep2(d) {
           <span style="font-size:11px;margin-left:6px;" class="tag ${d.monopolyOk?'tag-green':'tag-red'}">${d.monopolyOk?'< 50% 可进入':'> 50% 垄断市场'}</span>
         </div>
         <div style="margin-top:10px;">
-          <div class="section-title">卖家构成（Bella: 中国卖家占主导属正常）</div>
+          <div class="section-title">卖家构成（Ziv: 中国卖家占主导属正常）</div>
           <div class="score-row"><span class="score-dim">中国卖家</span><div class="score-bar-wrap"><div class="score-bar-fill" style="width:${d.chineseSellers}%;background:var(--amber-mid)"></div></div><span class="score-num">${d.chineseSellers}%</span></div>
           <div class="score-row"><span class="score-dim">本土卖家</span><div class="score-bar-wrap"><div class="score-bar-fill" style="width:${d.usSellers}%;background:var(--blue)"></div></div><span class="score-num">${d.usSellers}%</span></div>
         </div>
@@ -476,7 +370,7 @@ function renderStep3(d) {
         ${(d.mainMaterials||[]).map(m=>`<div class="score-row"><span class="score-dim">${m.name}</span><div class="score-bar-wrap"><div class="score-bar-fill" style="width:${m.pct}%;background:var(--blue)"></div></div><span class="score-num">${m.pct}%</span></div>`).join('')}
       </div>
       <div>
-        <div class="section-title">基础属性 vs 升级属性（Bella方法论）</div>
+        <div class="section-title">基础属性 vs 升级属性（Ziv方法论）</div>
         <div style="margin-bottom:8px;"><span style="font-size:11px;color:var(--text-3);">基础属性（必须满足）</span>
           <div class="tag-row" style="margin-top:4px;">${(d.basicAttributes||[]).map(a=>`<span class="tag tag-green">${a}</span>`).join('')}</div>
         </div>
@@ -503,7 +397,7 @@ function renderStep4(d) {
     </div>
     <div class="two-col">
       <div>
-        <div class="section-title">用户需求金字塔（Bella方法论）</div>
+        <div class="section-title">用户需求金字塔（Ziv方法论）</div>
         <div style="margin-bottom:10px;background:var(--green-light);border-radius:var(--r-sm);padding:10px 12px;">
           <div style="font-size:11px;color:var(--green);font-weight:700;margin-bottom:6px;">基础需求 ${d.basicNeedsPct}% — 必须满足</div>
           ${(d.basicNeeds||[]).map(n=>`<div class="score-row" style="margin-bottom:4px;"><span class="score-dim">${n.label}(${n.pct}%)</span><div class="score-bar-wrap"><div class="score-bar-fill" style="width:${n.pct*4}%;background:var(--green)"></div></div></div>`).join('')}
@@ -548,7 +442,7 @@ function renderStep5(d) {
     <div style="margin-bottom:14px;">
       ${(d.gaps||[]).map((g,i)=>`<div class="gap-card"><div class="gap-num">机会 ${i+1} · 优先级: ${g.priority}</div><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;">${g.title}</div><div class="gap-text">${g.desc}</div></div>`).join('')}
     </div>
-    <div class="section-title">关键词供需比分析（Bella核心方法：供给/需求 < 0.4 = 蓝海）</div>
+    <div class="section-title">关键词供需比分析（Ziv核心方法：供给/需求 < 0.4 = 蓝海）</div>
     <div class="table-wrap" style="margin-bottom:14px;">
       <table class="comp">
         <thead><tr><th>关键词</th><th>月搜索量</th><th>竞争结果数</th><th>供需比</th><th>竞争强度</th><th>机会评级</th><th>建议</th></tr></thead>
@@ -597,7 +491,7 @@ function showFinanceForm() {
   setActiveStep(6);
   const f = p.financials;
   document.getElementById('stepContent').innerHTML = `<div class="panel">
-    <div class="panel-hd"><h2>Step 6: 财务测算（Bella全成本核算模型）</h2></div>
+    <div class="panel-hd"><h2>Step 6: 财务测算（Ziv全成本核算模型）</h2></div>
     <div class="section-title">显性成本（直接成本）</div>
     <div class="fin-form" style="margin-bottom:18px;">
       <div class="fin-group"><label>采购单价 ($)</label><input type="number" id="f-cost" value="${f.cost}" step="0.1" /></div>
@@ -607,17 +501,16 @@ function showFinanceForm() {
       <div class="fin-group"><label>日均广告预算 ($)</label><input type="number" id="f-ad" value="${f.adBudget}" step="1" /></div>
       <div class="fin-group"><label>首批库存 (件)</label><input type="number" id="f-inv" value="${f.inventory}" step="50" /></div>
     </div>
-    <div class="section-title">隐性成本（间接成本，Bella强调必须计算）</div>
+    <div class="section-title">隐性成本（间接成本，Ziv强调必须计算）</div>
     <div class="fin-form">
       <div class="fin-group"><label>月退货成本 ($)</label><input type="number" id="f-refund" value="${f.refund||3}" step="1" /></div>
       <div class="fin-group"><label>月优惠券成本 ($)</label><input type="number" id="f-coupon" value="${f.coupon||1}" step="0.5" /></div>
       <div class="fin-group"><label>月仓储费 ($)</label><input type="number" id="f-storage" value="${f.storage||2}" step="0.5" /></div>
     </div>
-    <div class="warn-box" style="margin-top:12px;">💡 Bella强调：只看毛利率会忽略广告、退货、仓储等隐性成本，必须做全成本核算才能看到真实净利润。</div>
+    <div class="warn-box" style="margin-top:12px;">💡 Ziv强调：只看毛利率会忽略广告、退货、仓储等隐性成本，必须做全成本核算才能看到真实净利润。</div>
     <button class="start-btn" style="max-width:200px;margin-top:14px;" onclick="submitFinance()">开始计算</button>
   </div>`;
 }
-
 function submitFinance() {
   const p = getP(); if (!p) return;
   p.financials = {
@@ -696,7 +589,7 @@ function renderStep7(d) {
     </div>
   </div>
   <div class="panel">
-    <div class="panel-hd"><h2>多维评分矩阵（Bella四维评估体系扩展版）</h2>${reBtn(7)}</div>
+    <div class="panel-hd"><h2>多维评分矩阵（Ziv四维评估体系扩展版）</h2>${reBtn(7)}</div>
     ${(d.dimensions||[]).map(dim=>`
       <div class="score-row">
         <span class="score-dim" style="width:170px;">${dim.name} (${dim.weight}%)</span>
@@ -777,7 +670,6 @@ async function handleFileUpload(e) {
 }
 
 async function extractImageData(base64, type) {
-  if (!API_KEY) return '已保存图片（需API Key才能提取数据）';
   const typeLabels = {
     google_trends: 'Google Trends 热度图表',
     opportunity_explorer: '亚马逊商机探测器数据',
@@ -787,17 +679,16 @@ async function extractImageData(base64, type) {
     bsr_ranking: 'BSR排名数据'
   };
   try {
-    const req = buildApiRequest({
-      model: API_MODEL, max_tokens: 600,
-      messages: [{ role: 'user', content: [
-        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64.split(',')[1] || base64 } },
-        { type: 'text', text: `这是一张${typeLabels[type]||'亚马逊数据'}截图。请提取所有可见的关键数据，输出简洁的文本摘要（数字、百分比、趋势方向等），不超过300字。` }
-      ]}]
+    const match = base64.match(/^data:([^;]+);base64,(.+)$/);
+    return await callServer({
+      prompt: `这是一张${typeLabels[type] || '亚马逊数据'}截图。请提取所有可见的关键数据，输出简洁的文本摘要（数字、百分比、趋势方向等），不超过300字。`,
+      responseType: 'text',
+      image: { mimeType: match?.[1] || 'image/jpeg', data: match?.[2] || base64 }
     });
-    const resp = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body });
-    const data = await resp.json();
-    return data.content?.[0]?.text || '图片已上传，数据提取中...';
-  } catch (e) { return '图片已上传'; }
+  } catch (e) {
+    console.error('图片识别失败:', e);
+    return `图片已上传（识别失败：${e.message}）`;
+  }
 }
 
 function readFileAsText(file) {
