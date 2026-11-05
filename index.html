@@ -3,26 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>亚马逊爆品选品系统</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <title>Ziv 亚马逊选品工作台</title>
+  <link rel="stylesheet" href="css/style.css?v=20261105-neon2" />
 </head>
 <body>
   <!-- SIDEBAR -->
   <div class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-        <rect width="26" height="26" rx="7" fill="#3B6D11"/>
-        <path d="M7 13h12M13 7l6 6-6 6" stroke="#EAF3DE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect width="26" height="26" rx="7" fill="#69E8F5"/>
+        <path d="M7 13h12M13 7l6 6-6 6" stroke="#050608" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span>爆品选品系统</span>
+      <span>Ziv 选品工作台</span>
     </div>
     <button class="new-btn" onclick="newProject()">＋ 新建选品</button>
     <div class="sidebar-section-label">历史记录</div>
     <div class="history-list" id="historyList"></div>
     <div class="sidebar-footer">
       <div class="api-status" id="apiStatus">
-        <span class="dot" id="apiDot"></span>
-        <span id="apiStatusText">未配置 API Key</span>
+        <span class="dot ok" id="apiDot"></span>
+        <span id="apiStatusText">Ziv AI 已就绪</span>
       </div>
     </div>
   </div>
@@ -33,48 +33,13 @@
     <!-- WELCOME -->
     <div id="welcomeScreen" class="welcome-screen">
       <div class="welcome-inner">
-        <div class="welcome-badge">Bella 爆品方法论 · 数据驱动版</div>
-        <h1>亚马逊爆品选品系统</h1>
-        <p>基于<strong>日销3500单实战方法论</strong>，整合 Google Trends + ABA品牌分析 + 商机探测器 + 竞品拆解 + 用户需求金字塔，构建科学的七步选品决策体系。</p>
+        <div class="welcome-badge">ZIV INTELLIGENCE · DARK NEON EDITION</div>
+        <h1>Ziv 亚马逊选品工作台</h1>
+        <p>以 <strong>Ziv 数据化选品框架</strong> 为核心，整合 Google Trends、ABA 品牌分析、商机探测器、竞品拆解与用户需求洞察，打造专属于你的七步选品决策工作台。</p>
 
-        <div class="api-setup-box" id="apiSetupBox">
-          <div class="api-setup-label">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="#185FA5" stroke-width="1.2"/><path d="M7 6.5v4M7 4.5v.5" stroke="#185FA5" stroke-width="1.2" stroke-linecap="round"/></svg>
-            第一步：配置 API（必须先完成）
-          </div>
-
-          <div class="api-choice-row">
-            <div class="api-choice-card" onclick="selectApiMode('official')" id="choiceOfficial">
-              <div class="acc-icon">🔑</div>
-              <div class="acc-title">官方 API</div>
-              <div class="acc-desc">Anthropic 官方<br/>国内需翻墙</div>
-            </div>
-            <div class="api-choice-card" onclick="selectApiMode('proxy')" id="choiceProxy">
-              <div class="acc-icon">🔀</div>
-              <div class="acc-title">中转站 API</div>
-              <div class="acc-desc">国内直连<br/>推荐国内用户</div>
-            </div>
-          </div>
-
-          <!-- 中转站地址（仅中转站模式显示） -->
-          <div id="proxyUrlRow" style="display:none; margin-bottom:6px;">
-            <input type="text" id="apiUrlInput" placeholder="中转站地址，如：https://yunwu.ai" style="width:100%;padding:7px 10px;border:1px solid #b5d4f4;border-radius:6px;background:#fff;font-size:13px;box-sizing:border-box;" />
-            <p style="font-size:11px;color:#185FA5;margin-top:4px;">末尾不要加 /，工具自动拼接 /v1/messages</p>
-          </div>
-
-          <!-- API Key（始终显示，id唯一） -->
-          <div class="api-input-row" style="margin-bottom:6px;">
-            <input type="password" id="apiKeyInput" placeholder="API Key" />
-            <button onclick="saveApiKey()">保存</button>
-          </div>
-
-          <!-- 模型名（仅中转站模式显示） -->
-          <div id="proxyModelRow" style="display:none; margin-bottom:6px;">
-            <input type="text" id="apiModelInput" placeholder="模型名，如：claude-sonnet-4-6（不填则用默认）" style="width:100%;padding:7px 10px;border:1px solid #b5d4f4;border-radius:6px;background:#fff;font-size:13px;box-sizing:border-box;" />
-          </div>
-
-          <p class="api-hint" id="apiHintText">获取官方 Key：<a href="https://console.anthropic.com/" target="_blank">console.anthropic.com →</a>（需翻墙）</p>
-          <div id="apiSavedMsg" style="display:none;font-size:12px;color:#3B6D11;font-weight:600;margin-top:6px;">✓ 已保存，可以开始分析</div>
+        <div class="api-setup-box" id="apiSetupBox" style="background:var(--green-light);border-color:#c6e09a;">
+          <div class="api-setup-label" style="color:var(--green);margin-bottom:4px;">◆ Ziv AI 智能引擎已连接</div>
+          <p class="api-hint" style="color:var(--text-2);margin-top:0;">密钥由 Vercel 服务端安全托管，打开工作台即可开始分析。</p>
         </div>
 
         <div class="start-card">
@@ -213,6 +178,6 @@
 
   </div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=20261105-neon2"></script>
 </body>
 </html>
